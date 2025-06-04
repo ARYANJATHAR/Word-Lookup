@@ -1,6 +1,7 @@
 import pyperclip
 import time
 import tkinter as tk
+import tkinter.messagebox
 import threading
 import ctypes
 import re
@@ -12,6 +13,10 @@ from PIL import Image;
 import winreg
 import logging
 import sys
+import base64
+from cryptography.fernet import Fernet
+import json
+from pathlib import Path
 
 def is_admin():
     try:
@@ -25,15 +30,64 @@ def run_as_admin():
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
         sys.exit()
 
-# Set up logging to user's temp directory
-log_file = os.path.join(os.environ.get('TEMP', os.getcwd()), 'word_lookup_debug.log')
+def get_app_data_dir():
+    """Get or create application data directory"""
+    app_data = os.path.join(os.getenv('APPDATA'), 'Word Lookup')
+    os.makedirs(app_data, exist_ok=True)
+    return app_data
+
+def get_encryption_key():
+    """Get or create encryption key"""
+    key_file = os.path.join(get_app_data_dir(), '.key')
+    if os.path.exists(key_file):
+        with open(key_file, 'rb') as f:
+            return f.read()
+    else:
+        key = Fernet.generate_key()
+        with open(key_file, 'wb') as f:
+            f.write(key)
+        return key
+
+def encrypt_api_key(api_key):
+    """Encrypt API key"""
+    f = Fernet(get_encryption_key())
+    return f.encrypt(api_key.encode()).decode()
+
+def decrypt_api_key(encrypted_key):
+    """Decrypt API key"""
+    try:
+        f = Fernet(get_encryption_key())
+        return f.decrypt(encrypted_key.encode()).decode()
+    except:
+        return None
+
+# Set up logging to exclude sensitive information
+class SensitiveFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None):
+        super().__init__(fmt, datefmt)
+        self.sensitive_patterns = [
+            r'GEMINI_API_KEY=[^\s]*',
+            r'api_key=[^\s]*',
+            r'key=[^\s]*'
+        ]
+
+    def format(self, record):
+        message = super().format(record)
+        for pattern in self.sensitive_patterns:
+            message = re.sub(pattern, '[REDACTED]', message)
+        return message
+
+# Set up logging
+log_file = os.path.join(get_app_data_dir(), 'word_lookup.log')
+formatter = SensitiveFormatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler = logging.FileHandler(log_file)
+file_handler.setFormatter(formatter)
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(formatter)
+
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stdout)
-    ]
+    level=logging.INFO,
+    handlers=[file_handler, stream_handler]
 )
 
 # Load environment variables from .env file
@@ -44,105 +98,148 @@ load_dotenv()
 if len(sys.argv) > 1 and sys.argv[1] == "--startup":
     run_as_admin()
 
-# Get API key from environment variable
 def load_api_key():
     logging.info("Loading API key...")
     
-    # Try multiple locations for .env file
-    possible_paths = [
-        '.env',  # Current directory
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'),  # Script directory
-        os.path.join(os.path.dirname(sys.executable), '.env')  # Executable directory
-    ]
+    # Try to load from secure storage
+    config_file = os.path.join(get_app_data_dir(), 'config.json')
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                encrypted_key = config.get('api_key')
+                if encrypted_key:
+                    api_key = decrypt_api_key(encrypted_key)
+                    if api_key:
+                        logging.info("API key loaded from secure storage")
+                        return api_key
+        except Exception as e:
+            logging.warning(f"Error loading stored API key: {str(e)}")
     
-    if getattr(sys, 'frozen', False):
-        # If running as exe (PyInstaller)
-        possible_paths.append(os.path.join(sys._MEIPASS, '.env'))
+    logging.info("No stored API key found, showing input dialog...")
     
-    api_key = None
-    for env_path in possible_paths:
-        if os.path.exists(env_path):
-            logging.info(f"Found .env file at: {env_path}")
-            load_dotenv(env_path)
-            api_key = os.getenv('GEMINI_API_KEY')
-            if api_key:
-                logging.info("API key loaded successfully")
-                break
-    
-    if not api_key:
-        logging.warning("No API key found in .env files, prompting user...")
+    try:
+        # Create a simple input dialog
         root = tk.Tk()
-        root.withdraw()  # Hide the main window
+        root.title("Word Lookup - API Key Required")
         
-        # Create a simple dialog
-        dialog = tk.Toplevel(root)
-        dialog.title("API Key Required")
-        dialog.geometry("400x150")
-        dialog.transient(root)
-        dialog.lift()  # Lift the window to the top
-        dialog.focus_force()  # Force focus
+        # Set window properties
+        root.attributes('-topmost', True)
+        root.geometry("400x300")
         
-        # Center the dialog
-        dialog.update_idletasks()
-        width = dialog.winfo_width()
-        height = dialog.winfo_height()
-        x = (dialog.winfo_screenwidth() // 2) - (width // 2)
-        y = (dialog.winfo_screenheight() // 2) - (height // 2)
-        dialog.geometry(f'{width}x{height}+{x}+{y}')
+        # Center the window
+        root.update_idletasks()
+        width = root.winfo_width()
+        height = root.winfo_height()
+        x = (root.winfo_screenwidth() // 2) - (width // 2)
+        y = (root.winfo_screenheight() // 2) - (height // 2)
+        root.geometry(f'{width}x{height}+{x}+{y}')
         
-        tk.Label(dialog, text="Please enter your Gemini API Key:").pack(pady=10)
-        entry = tk.Entry(dialog, width=50)
+        logging.info("Created main window")
+        
+        # Variables
+        api_key_var = tk.StringVar()
+        result = [None]  # Using list to store result from inner function
+        
+        # Create widgets
+        tk.Label(
+            root,
+            text="Please enter your Gemini API Key:",
+            font=("Segoe UI", 12)
+        ).pack(pady=20)
+        
+        entry = tk.Entry(root, textvariable=api_key_var, width=40)
         entry.pack(pady=10)
         
-        def save_key():
-            key = entry.get().strip()
-            if key:
-                # Try to save to multiple locations
-                saved = False
-                for env_path in possible_paths:
-                    try:
-                        with open(env_path, 'w') as f:
-                            f.write(f'GEMINI_API_KEY={key}')
-                        saved = True
-                        logging.info(f"API key saved to: {env_path}")
-                        break
-                    except Exception as e:
-                        logging.warning(f"Could not save to {env_path}: {e}")
+        def validate_and_save():
+            key = api_key_var.get().strip()
+            if not key:
+                tkinter.messagebox.showerror("Error", "Please enter an API key")
+                return
                 
-                if not saved:
-                    # If we couldn't save to any location, try user's documents
-                    docs_path = os.path.join(os.path.expanduser('~'), 'Documents', '.env')
-                    try:
-                        os.makedirs(os.path.dirname(docs_path), exist_ok=True)
-                        with open(docs_path, 'w') as f:
-                            f.write(f'GEMINI_API_KEY={key}')
-                        possible_paths.append(docs_path)
-                        logging.info(f"API key saved to documents: {docs_path}")
-                    except Exception as e:
-                        logging.error(f"Could not save to documents: {e}")
+            logging.info("Validating API key...")
+            try:
+                # Test the API key
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+                response = requests.post(url, json={
+                    "contents": [{"parts": [{"text": "test"}]}]
+                })
+                response.raise_for_status()
                 
-                dialog.quit()
+                # If successful, encrypt and save the key
+                encrypted_key = encrypt_api_key(key)
+                os.makedirs(os.path.dirname(config_file), exist_ok=True)
+                with open(config_file, 'w') as f:
+                    json.dump({'api_key': encrypted_key}, f)
+                
+                result[0] = key
+                root.quit()
+                
+            except Exception as e:
+                error_msg = str(e)
+                logging.error(f"API key validation failed: {error_msg}")
+                tkinter.messagebox.showerror(
+                    "Invalid API Key",
+                    f"The API key appears to be invalid:\n{error_msg}\nPlease check and try again."
+                )
         
-        tk.Button(dialog, text="Save", command=save_key).pack(pady=10)
-        dialog.protocol("WM_DELETE_WINDOW", dialog.quit)
-        dialog.mainloop()
-        dialog.destroy()
-        root.destroy()
+        def open_api_page():
+            os.system('start https://makersuite.google.com/app/apikey')
         
-        # Try loading again after user input
-        for env_path in possible_paths:
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-                api_key = os.getenv('GEMINI_API_KEY')
-                if api_key:
-                    logging.info("API key loaded after user input")
-                    break
-    
-    if not api_key:
-        logging.error("No API key provided. Application will close.")
-        raise ValueError("No API key provided. Application will close.")
-    
-    return api_key
+        # Buttons
+        tk.Button(
+            root,
+            text="Get API Key",
+            command=open_api_page,
+            font=("Segoe UI", 10)
+        ).pack(pady=10)
+        
+        tk.Button(
+            root,
+            text="Save",
+            command=validate_and_save,
+            font=("Segoe UI", 10, "bold")
+        ).pack(pady=10)
+        
+        # Prevent window from being closed
+        def on_closing():
+            if tkinter.messagebox.askokcancel("Quit", "API key is required to run the application. Do you want to quit?"):
+                root.quit()
+        
+        root.protocol("WM_DELETE_WINDOW", on_closing)
+        
+        logging.info("Showing dialog...")
+        root.mainloop()
+        logging.info("Dialog closed")
+        
+        try:
+            root.destroy()
+        except:
+            pass
+        
+        if not result[0]:
+            logging.error("No API key provided")
+            raise ValueError("No API key provided. Application will close.")
+        
+        return result[0]
+        
+    except Exception as e:
+        logging.error(f"Error showing API key dialog: {str(e)}")
+        # Fallback to command line input if GUI fails
+        logging.info("Attempting fallback to command line input...")
+        print("\nFailed to show GUI dialog. Please enter your Gemini API key:")
+        key = input("API Key: ").strip()
+        if key:
+            try:
+                encrypted_key = encrypt_api_key(key)
+                os.makedirs(os.path.dirname(config_file), exist_ok=True)
+                with open(config_file, 'w') as f:
+                    json.dump({'api_key': encrypted_key}, f)
+                return key
+            except Exception as e2:
+                logging.error(f"Error saving API key from command line: {str(e2)}")
+                raise ValueError("Failed to save API key")
+        raise ValueError("No API key provided")
 
 # Replace the current api_key assignment with this
 try:
@@ -385,56 +482,93 @@ def create_system_tray():
     logging.info("Creating system tray icon...")
     try:
         # Get the correct path whether running as script or executable
+        icon_path = None
         if getattr(sys, 'frozen', False):
             # If running as exe (PyInstaller)
-            app_path = os.path.join(sys._MEIPASS, "app_icon.ico")
-            logging.info(f"Running as exe, icon path: {app_path}")
+            try:
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.abspath(".")
         else:
             # If running as script
-            app_path = "app_icon.ico"
-            logging.info(f"Running as script, icon path: {app_path}")
-            
-        if not os.path.exists(app_path):
-            logging.error(f"Icon file not found at: {app_path}")
-            # Try alternate location
-            app_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.ico")
-            logging.info(f"Trying alternate icon path: {app_path}")
-            
-        image = Image.open(app_path)
-        logging.info("System tray icon loaded successfully")
-        
+            base_path = os.path.abspath(".")
+
+        # Try multiple possible locations for the icon
+        possible_paths = [
+            os.path.join(base_path, "app_icon.ico"),
+            "app_icon.ico",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.ico"),
+            os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "app_icon.ico")
+        ]
+
+        for path in possible_paths:
+            if os.path.exists(path):
+                icon_path = path
+                logging.info(f"Found icon at: {icon_path}")
+                break
+
+        if not icon_path:
+            logging.error("Icon file not found in any location")
+            # Create a default icon as fallback
+            img = Image.new('RGBA', (64, 64), color='blue')
+            icon_path = os.path.join(get_app_data_dir(), 'default_icon.ico')
+            img.save(icon_path, format='ICO')
+            logging.info("Created default icon as fallback")
+
+        # Load the icon
+        try:
+            image = Image.open(icon_path)
+            logging.info("System tray icon loaded successfully")
+        except Exception as e:
+            logging.error(f"Failed to load icon: {str(e)}")
+            return None
+
         def on_exit(icon, item):
             global monitoring
             monitoring = False
             icon.stop()
             logging.info("Application exiting...")
-        
+
         def on_toggle(icon, item):
             global monitoring
             monitoring = not monitoring
             if monitoring:
                 threading.Thread(target=clipboard_monitor, daemon=True).start()
                 logging.info("Monitoring enabled")
+                icon.notify("Word Lookup", "Word lookup is now enabled")
             else:
                 logging.info("Monitoring disabled")
-        
+                icon.notify("Word Lookup", "Word lookup is now disabled")
+
         def on_startup_toggle(icon, item):
             if item.checked:
                 success = add_to_startup()
-                logging.info("Added to startup" if success else "Failed to add to startup")
+                msg = "Added to startup" if success else "Failed to add to startup"
+                logging.info(msg)
+                icon.notify("Word Lookup", msg)
             else:
                 success = remove_from_startup()
-                logging.info("Removed from startup" if success else "Failed to remove from startup")
-        
+                msg = "Removed from startup" if success else "Failed to remove from startup"
+                logging.info(msg)
+                icon.notify("Word Lookup", msg)
+
         # Create the system tray menu with startup option
         menu = (
             pystray.MenuItem("Enable/Disable", on_toggle, default=True),
             pystray.MenuItem("Run at Startup", on_startup_toggle, checked=lambda item: is_in_startup()),
             pystray.MenuItem("Exit", on_exit)
         )
-        
+
         icon = pystray.Icon("Word Lookup", image, "Word Lookup", menu)
         logging.info("System tray icon created")
+
+        # Show notification that app is running
+        def show_startup_notification():
+            time.sleep(2)  # Wait for icon to be ready
+            icon.notify("Word Lookup", "Application is running in system tray")
+
+        threading.Thread(target=show_startup_notification, daemon=True).start()
+
         return icon
     except Exception as e:
         logging.error(f"Error creating system tray: {str(e)}")
@@ -456,6 +590,15 @@ def is_in_startup():
 if __name__ == "__main__":
     logging.info("Application main entry point")
     try:
+        # First, try to load or get API key
+        try:
+            api_key = load_api_key()
+            logging.info("API key loaded successfully")
+        except Exception as e:
+            logging.error(f"Failed to load/get API key: {str(e)}")
+            tkinter.messagebox.showerror("Error", f"Failed to load API key: {str(e)}")
+            sys.exit(1)
+
         # Start clipboard monitoring thread
         monitor_thread = threading.Thread(target=clipboard_monitor, daemon=True)
         monitor_thread.start()
@@ -469,7 +612,9 @@ if __name__ == "__main__":
             logging.info("System tray icon stopped")
         else:
             logging.error("Failed to create system tray icon")
-            sys.exit(1)
+            if not tkinter.messagebox.askretrycancel("Error", "Failed to create system tray icon. Retry?"):
+                sys.exit(1)
     except Exception as e:
         logging.error(f"Error in main: {str(e)}")
+        tkinter.messagebox.showerror("Error", f"An error occurred: {str(e)}")
         raise
