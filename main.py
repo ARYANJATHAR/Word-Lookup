@@ -156,7 +156,20 @@ def load_api_key():
         
         # Set window properties
         root.attributes('-topmost', True)
-        root.geometry("400x300")
+        root.geometry("400x350")
+        
+        # Set window icon
+        try:
+            if getattr(sys, 'frozen', False):
+                # If running as exe
+                base_path = sys._MEIPASS
+            else:
+                # If running as script
+                base_path = os.path.abspath(".")
+            icon_path = os.path.join(base_path, "app_icon.ico")
+            root.iconbitmap(icon_path)
+        except:
+            pass  # Icon loading is not critical
         
         # Center the window
         root.update_idletasks()
@@ -166,26 +179,55 @@ def load_api_key():
         y = (root.winfo_screenheight() // 2) - (height // 2)
         root.geometry(f'{width}x{height}+{x}+{y}')
         
-        logging.info("Created main window")
+        # Configure grid
+        root.grid_columnconfigure(0, weight=1)
         
-        # Variables
+        # Style configuration
+        bg_color = "#ffffff"  # White background
+        accent_color = "#1a73e8"  # Google Blue
+        text_color = "#202124"  # Dark gray for text
+        
+        root.configure(bg=bg_color)
+        
+        # Add padding frame
+        main_frame = tk.Frame(root, bg=bg_color)
+        main_frame.grid(row=0, column=0, padx=30, pady=20, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title with custom font
+        title_label = tk.Label(
+            main_frame,
+            text="Please enter your Gemini API Key",
+            font=("Segoe UI", 14, "bold"),
+            bg=bg_color,
+            fg=text_color
+        )
+        title_label.grid(row=0, column=0, pady=(0, 20), sticky="w")
+        
+        # API Key entry with modern styling
+        entry_frame = tk.Frame(main_frame, bg=bg_color, highlightthickness=1, 
+                             highlightbackground="#dadce0", highlightcolor=accent_color)
+        entry_frame.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        entry_frame.grid_columnconfigure(0, weight=1)
+        
         api_key_var = tk.StringVar()
-        result = [None]  # Using list to store result from inner function
-        
-        # Create widgets
-        tk.Label(
-            root,
-            text="Please enter your Gemini API Key:",
-            font=("Segoe UI", 12)
-        ).pack(pady=20)
-        
-        entry = tk.Entry(root, textvariable=api_key_var, width=40)
-        entry.pack(pady=10)
+        entry = tk.Entry(
+            entry_frame,
+            textvariable=api_key_var,
+            font=("Segoe UI", 11),
+            bd=0,
+            bg=bg_color
+        )
+        entry.grid(row=0, column=0, padx=10, pady=8, sticky="ew")
         
         def validate_and_save():
             key = api_key_var.get().strip()
             if not key:
-                tkinter.messagebox.showerror("Error", "Please enter an API key")
+                tkinter.messagebox.showerror(
+                    "Error",
+                    "Please enter an API key",
+                    parent=root
+                )
                 return
                 
             logging.info("Validating API key...")
@@ -211,30 +253,83 @@ def load_api_key():
                 logging.error(f"API key validation failed: {error_msg}")
                 tkinter.messagebox.showerror(
                     "Invalid API Key",
-                    f"The API key appears to be invalid:\n{error_msg}\nPlease check and try again."
+                    f"The API key appears to be invalid:\n{error_msg}\nPlease check and try again.",
+                    parent=root
                 )
         
         def open_api_page():
             os.system('start https://makersuite.google.com/app/apikey')
         
-        # Buttons
-        tk.Button(
-            root,
+        # Get API Key button with modern styling
+        get_key_button = tk.Button(
+            main_frame,
             text="Get API Key",
             command=open_api_page,
-            font=("Segoe UI", 10)
-        ).pack(pady=10)
+            font=("Segoe UI", 11),
+            bg=bg_color,
+            fg=accent_color,
+            bd=1,
+            relief="solid",
+            cursor="hand2",
+            padx=15
+        )
+        get_key_button.grid(row=2, column=0, pady=(0, 15), sticky="ew")
         
-        tk.Button(
-            root,
+        # Add hover effect for get key button
+        def on_enter(e):
+            e.widget['background'] = '#f8f9fa'
+        
+        def on_leave(e):
+            e.widget['background'] = bg_color
+            
+        get_key_button.bind("<Enter>", on_enter)
+        get_key_button.bind("<Leave>", on_leave)
+        
+        # Save button with modern styling
+        save_button = tk.Button(
+            main_frame,
             text="Save",
             command=validate_and_save,
-            font=("Segoe UI", 10, "bold")
-        ).pack(pady=10)
+            font=("Segoe UI", 11, "bold"),
+            bg=accent_color,
+            fg="white",
+            bd=0,
+            cursor="hand2",
+            padx=15
+        )
+        save_button.grid(row=3, column=0, pady=(0, 10), sticky="ew")
+        
+        # Add hover effect for save button
+        def on_enter_save(e):
+            e.widget['background'] = '#1557b0'  # Darker blue on hover
+        
+        def on_leave_save(e):
+            e.widget['background'] = accent_color
+            
+        save_button.bind("<Enter>", on_enter_save)
+        save_button.bind("<Leave>", on_leave_save)
+        
+        # Add some helper text
+        helper_text = tk.Label(
+            main_frame,
+            text="You can get your API key from Google's Makersuite.\nClick 'Get API Key' to open the page.",
+            font=("Segoe UI", 9),
+            bg=bg_color,
+            fg="#5f6368",  # Gray text for helper message
+            justify="left"
+        )
+        helper_text.grid(row=4, column=0, pady=(10, 0), sticky="w")
+        
+        # Variables
+        result = [None]  # Using list to store result from inner function
         
         # Prevent window from being closed
         def on_closing():
-            if tkinter.messagebox.askokcancel("Quit", "API key is required to run the application. Do you want to quit?"):
+            if tkinter.messagebox.askokcancel(
+                "Quit",
+                "API key is required to run the application. Do you want to quit?",
+                parent=root
+            ):
                 root.quit()
         
         root.protocol("WM_DELETE_WINDOW", on_closing)
