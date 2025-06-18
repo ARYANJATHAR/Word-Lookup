@@ -67,3 +67,5 @@ An intelligent clipboard monitor that provides instant word meanings and synonym
 - for api issues , change the api key by deleting the application and again dowload it to enter new api key , same procedure.
   
 - If Windows security error appears, stop antivirus, download the application, then start antivirus again
+
+https://github.com/user-attachments/assets/3f2d475a-e569-49e3-8c42-83c97c875333
