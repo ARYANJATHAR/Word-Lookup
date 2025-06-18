@@ -51,16 +51,21 @@ An intelligent clipboard monitor that provides instant word meanings and synonym
 
 2. **System Tray Options:**
    Right-click the system tray icon (^) to access:
-   - Settings: Configure application preferences and toggle clipboard monitoring
-   - Startup: Enable/disable automatic launch when Windows starts
+   - Settings: Enable/disable, click to enable and disable whenever you want 
+   - Startup: Starts the application when the system is started , and configure from there .
+   - Exit: Closes the application 
 
 ### Tips
 - Internet connection is required for lookups
 - You can copy up to 3 words at once
-- The application runs in background to work
+- The application runs in background to work (if the startup option is clicked)
 
 ## Note
 - For the installer version, the application will start automatically after installation
 - You can find the application in your system tray
 - Right-click the tray icon to access settings or exit the application
+- for api issues , change the api key by deleting the application and again dowload it to enter new api key , same procedure.
+  
 - If Windows security error appears, stop antivirus, download the application, then start antivirus again
+
+https://github.com/user-attachments/assets/3f2d475a-e569-49e3-8c42-83c97c875333
