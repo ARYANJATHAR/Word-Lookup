@@ -11,7 +11,7 @@ An intelligent clipboard monitor that provides instant word meanings and synonym
 ## Installation
 
 ### Method 1: Windows Installer (Recommended)
-1. Download the latest installer from the `installer` folder
+1. Download the latest installer from the [Releases](https://github.com/ARYANJATHAR/QuickWord-AI/releases) section
 2. Run `WordLookup_Setup_1.0.0.exe`
 3. Follow the installation wizard
 4. Add your Gemini API key in the settings (first-time setup)
@@ -68,4 +68,4 @@ An intelligent clipboard monitor that provides instant word meanings and synonym
   
 - If Windows security error appears, stop antivirus, download the application, then start antivirus again
 
-https://github.com/user-attachments/assets/3f2d475a-e569-49e3-8c42-83c97c875333
+
