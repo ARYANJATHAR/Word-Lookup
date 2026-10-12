@@ -27,6 +27,9 @@ wheels/
 # Installer files
 installer/
 
+# Demo video output
+brag-output/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
