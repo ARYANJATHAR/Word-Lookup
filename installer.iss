@@ -1,7 +1,7 @@
 #define MyAppName "Word Lookup"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "Word Lookup"
-#define MyAppURL "https://github.com/ARYANJATHAR/QuickWord-AI"
+#define MyAppURL "https://github.com/ARYANJATHAR/Word-Lookup"
 #define MyAppExeName "Word Lookup.exe"
 
 [Setup]

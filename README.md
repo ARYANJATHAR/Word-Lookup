@@ -1,71 +1,58 @@
 # Word Lookup
 
-An intelligent clipboard monitor that provides instant word meanings and synonyms using Gemini AI. Simply copy any word or phrase to get instant definitions and synonyms in a convenient popup.
+A tiny Windows tray app that shows the meaning of any word you copy, right next to your cursor. Powered by Google's Gemini AI.
 
 ## Features
-- Real-time clipboard monitoring
-- Instant word definitions and synonyms
-- Clean popup interface
-- Powered by Google's Gemini AI
+- **Instant definitions**: meaning, part of speech, pronunciation, an example sentence and synonyms
+- **Click a synonym to copy it**, or copy the whole definition with one click
+- **Two ways to trigger**: automatically when you copy 1–3 words, or only when you select a word and press a shortcut (e.g. `Ctrl+Shift+D`)
+- **Modern popup**: light and dark themes (follows Windows), rounded corners on Windows 11, sharp on high-DPI screens, stays open while you hover it
+- **Fast repeat lookups**: answers are cached, so words you've looked up before appear instantly and cost nothing
+- **Recent lookups** in the tray menu
+- **Private by design**: your API key is encrypted with your Windows account (DPAPI), and copies from password managers are ignored
 
 ## Installation
 
-### Method 1: Windows Installer (Recommended)
-1. Download the latest installer from the [Releases](https://github.com/ARYANJATHAR/QuickWord-AI/releases) section
-2. Run `WordLookup_Setup_1.0.0.exe`
-3. Follow the installation wizard
-4. Add your Gemini API key in the settings (first-time setup)
+### Method 1: Download the app (Recommended)
+1. Download `WordLookup_2.0.0.exe` from the [latest release](https://github.com/ARYANJATHAR/Word-Lookup/releases/latest)
+2. Run it. No installation or Python needed. The first launch can take a few seconds.
+3. Paste your free Gemini API key ([get one here](https://aistudio.google.com/apikey)) and click **Get started**
+4. Optional: right-click the tray icon and enable **Start with Windows**
+
+Upgrading from 1.x? Exit the old version from its tray icon first (or uninstall it).
 
 ### Method 2: Run from Source
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ARYANJATHAR/Word-Lookup.git
-   cd Word-Lookup
-   ```
-2. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Create a `.env` file in the root directory and add your Gemini API key:
-   ```
-   GEMINI_API_KEY=your_api_key_here
-   ```
-4. Run the application:
-   ```bash
-   python main.py
-   ```
+Requires Python 3.10+ on Windows.
+```bash
+git clone https://github.com/ARYANJATHAR/Word-Lookup.git
+cd Word-Lookup
+pip install -r requirements.txt
+python main.py
+```
+The setup window asks for your API key on first run. Alternatively, create a `.env` file next to `main.py`:
+```
+GEMINI_API_KEY=your_api_key_here
+```
+A key set this way takes priority over the one saved in Settings.
 
 ## Usage
+1. Word Lookup runs in the system tray (bottom-right corner; check the `^` overflow area).
+2. Copy any word or short phrase (up to 3 words), and a card with its meaning appears next to your cursor.
+   - In shortcut mode, select the word and press your shortcut instead.
+3. Hover the card to keep it open, drag it to move it, and click a synonym to copy it.
 
-### Getting Started
-1. After installation, Word Lookup runs in your system tray
-2. Look for the Word Lookup icon (^) in your system tray (bottom-right corner)
-3. The application monitors your clipboard for words
+### Tray menu
+- **Pause / Resume lookups**: also triggered by clicking the tray icon
+- **Recent lookups**: reopen any of your last 8 words
+- **Settings…**: change API key, trigger mode, shortcut, Gemini model, theme and how long the popup stays
+- **Start with Windows**
+- **Exit**
 
-### How to Use
-1. **Looking Up Words:**
-   - Select any word in any application
-   - Press Ctrl+C or copy the word
-   - A popup will appear with the word's meaning and synonyms
-   
-
-2. **System Tray Options:**
-   Right-click the system tray icon (^) to access:
-   - Settings: Enable/disable, click to enable and disable whenever you want 
-   - Startup: Starts the application when the system is started , and configure from there .
-   - Exit: Closes the application 
-
-### Tips
-- Internet connection is required for lookups
-- You can copy up to 3 words at once
-- The application runs in background to work (if the startup option is clicked)
-
-## Note
-- For the installer version, the application will start automatically after installation
-- You can find the application in your system tray
-- Right-click the tray icon to access settings or exit the application
-- for api issues , change the api key by deleting the application and again dowload it to enter new api key , same procedure.
-  
-- If Windows security error appears, stop antivirus, download the application, then start antivirus again
+## Notes
+- An internet connection is required for new lookups.
+- Settings, cache and logs are stored in `%APPDATA%\Word Lookup`.
+- The default model, `gemini-flash-lite-latest`, is Google's cheapest and always points to the newest Flash-Lite model.
+- Upgrading from 1.x: you'll be asked for your API key once more so it can be stored with the new encryption.
+- If Windows SmartScreen or your antivirus flags the app, choose "More info → Run anyway". The app isn't code-signed.
 
 https://github.com/user-attachments/assets/6ceff3f2-ba28-4c7e-9a1b-be2c6171f2a7
