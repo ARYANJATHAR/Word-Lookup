@@ -2,6 +2,11 @@
 
 A tiny Windows tray app that shows the meaning of any word you copy, right next to your cursor. Powered by Google's Gemini AI.
 
+
+https://github.com/user-attachments/assets/f91f3a23-f4a5-4dcd-9400-296456a51d1e
+
+
+
 ## Features
 - **Instant definitions**: meaning, part of speech, pronunciation, an example sentence and synonyms
 - **Click a synonym to copy it**, or copy the whole definition with one click
@@ -54,5 +59,3 @@ A key set this way takes priority over the one saved in Settings.
 - The default model, `gemini-flash-lite-latest`, is Google's cheapest and always points to the newest Flash-Lite model.
 - Upgrading from 1.x: you'll be asked for your API key once more so it can be stored with the new encryption.
 - If Windows SmartScreen or your antivirus flags the app, choose "More info → Run anyway". The app isn't code-signed.
-
-https://github.com/user-attachments/assets/6ceff3f2-ba28-4c7e-9a1b-be2c6171f2a7
